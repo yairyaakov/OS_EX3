@@ -45,12 +45,19 @@ First, few general points about question 1 and 2:
    ./q2WithList < input.txt  
    
    gprof ./q2WithList gmon.out > profile_output.txt
+
 2b. the graph represntation is preferd at list.
+
 conclusion: after the profiling, the best implementation: graph implementation by adjancy list, kosaraju algorithem preferd list over deque.
+
 full analyze is at the files, 2a,2b(txt format).
+
 To run the program:
+
    make
+   
    ./q2WithList < input.txt  
+   
    gprof ./q2WithList gmon.out > profile_output.txt
 
 rest of the required data is at each folder q3,q4,....,q10.
