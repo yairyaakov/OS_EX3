@@ -4,25 +4,46 @@ Operating Systems Test
 First, few general points about question 1 and 2:
 
 1.  at first, implement korsaju by list.
+   
     To run the program:
+    
     make
+
     ./q1
+
+
     example input:
+
     5 5
+
     1 2
+
     2 3
+
     3 1
+
     3 4
+
     4 5
+
     output should be :
+
     1 2 3 
+
     4 
+
     5 
-2. analyze the required data: 
+
+3. analyze the required data: 
+
 2a. list is faster than deque.
+
    To run the program:
+   
    make
+   
    ./q2WithList < input.txt  
+   
    gprof ./q2WithList gmon.out > profile_output.txt
 2b. the graph represntation is preferd at list.
 conclusion: after the profiling, the best implementation: graph implementation by adjancy list, kosaraju algorithem preferd list over deque.
