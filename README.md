@@ -1,5 +1,5 @@
 # OS_EX3
-Operating Systems Test
+Operating Systems Task
 
 First, few general points about question 1 and 2:
 
