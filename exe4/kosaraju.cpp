@@ -138,7 +138,7 @@ void Newedge(vector<list<int>> &adj){
     cout<<"Please enter edge you wish to add\n";
     cin>>i;
     cin>>j;
-    adj[i].push_back(j);
+    adj[i-1].push_back(j-1);
 }
 
 void Removeedge(vector<list<int>> &adj){
@@ -147,13 +147,13 @@ void Removeedge(vector<list<int>> &adj){
     cin >> i >> j;
 
     // Check if vertex i exists in the adjacency list and if j is in its list
-    if (i >= 0 && (long unsigned int)i < adj.size() && j >= 0 && (long unsigned int)j < adj.size()) {
+    if ((i-1) >= 0 && (long unsigned int)(i-1) < adj.size() && (j-1) >= 0 && (long unsigned int)j < adj.size()) {
         bool found = false;
 
         // Traverse the list at index i to find and remove vertex j
-        for (auto it = adj[i].begin(); it != adj[i].end(); ++it) {
-            if (*it == j) {
-                adj[i].erase(it);
+        for (auto it = adj[i-1].begin(); it != adj[i-1].end(); ++it) {
+            if (*it == (j-1)) {
+                adj[i-1].erase(it);
                 found = true;
                 break;
             }

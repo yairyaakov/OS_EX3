@@ -14,12 +14,17 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "proactor.hpp"
 #include <sys/wait.h>
 #define PORT "9034"
 
 using namespace std;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+bool graph_updated = false;
+size_t largest_scc_size = 0; // Stores the largest SCC size
+bool flag50Percent = false;
 vector<list<int>> adj;
 
 enum class Command {
@@ -139,6 +144,11 @@ void Newedge(vector<list<int>>& adj, int clientfd) {
     cin >> i;
     cin >> j;
     adj[i-1].push_back(j-1);
+   
+    graph_updated = true;
+    pthread_cond_signal(&cond); //wakes up
+    message = "Edge has been added\n";
+    send(clientfd, message.c_str(), message.size(), 0);
 }
 
 void Removeedge(vector<list<int>>& adj, int clientfd) {
@@ -151,11 +161,13 @@ void Removeedge(vector<list<int>>& adj, int clientfd) {
     if ((i-1) >= 0 && (long unsigned int)(i-1) < adj.size() && (j-1) >= 0 && (long unsigned int)j < adj.size()) {
         bool found = false;
 
-        // Traverse the list at index i to find and remove vertex j
         for (auto it = adj[i-1].begin(); it != adj[i-1].end(); ++it) {
-            if (*it == (j-1)) {
+            if (*it == j-1) {
                 adj[i-1].erase(it);
                 found = true;
+                graph_updated = true;
+                
+                pthread_cond_signal(&cond); //wakes up
                 break;
             }
         }
@@ -289,7 +301,8 @@ int setup_client_connection(int server_fd) {
     if (remoteaddr.ss_family == AF_INET) {
         struct sockaddr_in* s = (struct sockaddr_in*)&remoteaddr;
         inet_ntop(AF_INET, &s->sin_addr, remoteIP, sizeof(remoteIP));
-    } else {
+    } 
+    else {
         struct sockaddr_in6* s = (struct sockaddr_in6*)&remoteaddr;
         inet_ntop(AF_INET6, &s->sin6_addr, remoteIP, sizeof(remoteIP));
     }
@@ -298,7 +311,69 @@ int setup_client_connection(int server_fd) {
     return new_fd;
 }
 
+void is_it_50Percent(vector<list<int>>& adj) {
+    int n = adj.size();
+    list<int> List;
+    vector<bool> visited(n, false);
+    for (int i = 0; i < n; i++) {
+        if (!visited[i]) {
+            DFS1(i, adj, visited, List);
+        }
+    }
+
+    vector<list<int>> transposed_adj(n);
+    for (int v = 0; v < n; v++) {
+        for (int i : adj[v]) {
+            transposed_adj[i].push_front(v);
+        }
+    }
+
+    fill(visited.begin(), visited.end(), false);
+    for (int v : List) {
+        if (!visited[v]) {
+
+            vector<int> component;
+            DFS2(v, transposed_adj, visited, component);
+
+            largest_scc_size = max(largest_scc_size, component.size());
+        }
+    }
+}
+
+void* monitorGraphChanges(void* arg) {
+    while (true) {
+        pthread_mutex_lock(&mutex);
+
+        while (!graph_updated) { // wait for chenges
+            pthread_cond_wait(&cond, &mutex);
+        }
+
+        graph_updated = false;
+
+        largest_scc_size = 0;
+        is_it_50Percent(adj); // claculate SCC
+
+        size_t total_nodes = adj.size();
+        if (largest_scc_size >= total_nodes / 2 ) {
+            cout << "At Least 50% of the graph belongs to the same SCC\n";
+            flag50Percent = true;
+        } 
+        else {
+            if (flag50Percent) { //only if we reached to 50% in the past
+                cout << "At Least 50% of the graph no longer belongs to the same SCC\n";
+                flag50Percent = false; 
+            }
+        }
+
+        pthread_mutex_unlock(&mutex);
+    }
+    return nullptr;
+}
+
 int main() {
+    pthread_t monitor_thread;
+    pthread_create(&monitor_thread, NULL, monitorGraphChanges, NULL);
+
     int server_fd = setup_server();
     if (server_fd < 0) {
         cerr << "Failed to set up server\n";
@@ -310,13 +385,15 @@ int main() {
         if (client_fd == -1) {
             return 1;
         }
-        int* clientptr = &client_fd;
-        pthread_t client;
-        if (pthread_create(&client, NULL, Command_Shift, clientptr) != 0) {
-            cout << "pthread_create\n";
-            exit(1);
+        // Start proactor thread for each new client connection
+        pthread_t proactor_tid = startProactor(client_fd, Command_Shift);
+        if (proactor_tid == 0) {
+            cout << "Failed to create proactor thread.\n";
+            close(client_fd);
+            continue;
         }
-        pthread_detach(client);
+        // Example of stopping the Proactor thread manually if needed
+        // stopProactor(proactor_tid);
     }
 
     return 0;

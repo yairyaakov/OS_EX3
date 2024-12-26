@@ -140,7 +140,7 @@ void handleCommands() {
             }
         }
     }
-    delete graph; // ניקוי הזיכרון
+    delete graph;
 }
 
 int main() {
